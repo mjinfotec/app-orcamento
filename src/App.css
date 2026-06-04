@@ -1,0 +1,318 @@
+import React, { useState, useRef } from "react";
+import { Phone, Hash, Calendar, User, Mail, Info, FileText, Plus, Trash2, Shield, MapPin, Award } from "lucide-react";
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
+
+export default function App() {
+  // --- ESTADOS DO APLICATIVO ---
+  const [numeroOrcamento, setNumeroOrcamento] = useState("001/2026");
+  const [dataEmissao, setDataEmissao] = useState("2026-06-03");
+  const [validade, setValidade] = useState("15 dias");
+
+  const [cliente, setCliente] = useState({
+    nome: "CALCÁRIO ITATINGA",
+    cidade: "Castro-PR",
+    contato: "",
+    telefone: ""
+  });
+
+  const [servicos, setServicos] = useState([
+    { id: 1, descricao: "Troca DVR balança", quantidade: 1, valor: 200 },
+    { id: 2, descricao: "Configuração sistema de câmeras (computador / gravação)", quantidade: 1, valor: 200 },
+    { id: 3, descricao: "Configuração sistema câmeras (almox)", quantidade: 1, valor: 100 },
+    { id: 4, descricao: "Configuração sistema câmeras (escritório)", quantidade: 1, valor: 180 },
+    { id: 5, descricao: "1ª manutenção câmeras paiol", quantidade: 1, valor: 280 },
+    { id: 6, descricao: "2ª manutenção câmeras paiol", quantidade: 1, valor: 220 },
+    { id: 7, descricao: "3ª manutenção câmeras paiol", quantidade: 1, valor: 240 }
+  ]);
+
+  const [materiais, setMateriais] = useState([
+    { id: 1, descricao: "DVR 3008 Intelbras / linha 1000", quantidade: 1, valor: 1150 }
+  ]);
+
+  const [observacoes, setObservacoes] = useState(
+    "• Garantia conforme condições do fabricante.\n• Valores sujeitos à alteração conforme necessidade técnica."
+  );
+
+  // --- CÁLCULOS ---
+  const totalServicos = servicos.reduce((acc, curr) => acc + (curr.quantidade * curr.valor), 0);
+  const totalMateriais = materiais.reduce((acc, curr) => acc + (curr.quantidade * curr.valor), 0);
+  const totalGeral = totalServicos + totalMateriais;
+
+  // --- FUNÇÕES DE MANIPULAÇÃO ---
+  const adicionarServico = () => {
+    setServicos([...servicos, { id: Date.now(), descricao: "", quantidade: 1, valor: 0 }]);
+  };
+
+  const removerServico = (id) => {
+    setServicos(servicos.filter(item => item.id !== id));
+  };
+
+  const atualizarServico = (id, campo, valor) => {
+    setServicos(servicos.map(item => item.id === id ? { ...item, [campo]: valor } : item));
+  };
+
+  const adicionarMaterial = () => {
+    setMateriais([...materiais, { id: Date.now(), descricao: "", quantidade: 1, valor: 0 }]);
+  };
+
+  const removerMaterial = (id) => {
+    setMateriais(materiais.filter(item => item.id !== id));
+  };
+
+  const atualizarMaterial = (id, campo, valor) => {
+    setMateriais(materiais.map(item => item.id === id ? { ...item, [campo]: valor } : item));
+  };
+
+  // --- GERADOR DE PDF TIMBRADO ---
+  const gerarPDF = () => {
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+    // Cabeçalho Institucional Azul Escuro
+    doc.setFillColor(11, 25, 44);
+    doc.rect(0, 0, 210, 40, "F");
+
+    // Títulos do Cabeçalho
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text("YUNG CFTV", 15, 18);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("SEGURANÇA ELETRÔNICA & MONITORAMENTO", 15, 24);
+    doc.text("CNPJ: 63.807.635/0001-15 | RUA TEOFILO DE CASTRO, 10A - SOCAVAO - CASTRO/PR", 15, 29);
+    doc.text("Contato: (42) 99821-9550 | Que Deus nos abençoe sempre", 15, 34);
+
+    // Faixa decorativa azul clara
+    doc.setFillColor(0, 141, 218);
+    doc.rect(0, 40, 210, 2, "F");
+
+    // Título do Documento
+    doc.setTextColor(11, 25, 44);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(`ORÇAMENTO Nº ${numeroOrcamento}`, 15, 52);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Data: ${dataEmissao.split('-').reverse().join('/')}`, 195, 49, { align: "right" });
+    doc.text(`Validade da Proposta: ${validade}`, 195, 54, { align: "right" });
+
+    // Quadro Dados do Cliente
+    doc.setFillColor(244, 246, 249);
+    doc.rect(15, 59, 180, 24, "F");
+    doc.setDrawColor(218, 223, 230);
+    doc.rect(15, 59, 180, 24, "S");
+
+    doc.setFont("helvetica", "bold");
+    doc.text(`CLIENTE: ${cliente.nome}`, 20, 65);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Cidade: ${cliente.cidade}`, 20, 71);
+    doc.text(`Contato: ${cliente.contato || "Não informado"}`, 110, 65);
+    doc.text(`Telefone: ${cliente.telefone || "Não informado"}`, 110, 71);
+
+    // Tabela de Serviços / Manutenções
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("1. PRESTAÇÃO DE SERVIÇOS / MANUTENÇÃO", 15, 92);
+
+    const colunasServicos = ["Item", "Descrição do Serviço executado", "Qtd", "Valor Unit.", "Total"];
+    const linhasServicos = servicos.map((s, i) => [
+      i + 1, s.descricao, s.quantidade, `R$ ${s.valor.toFixed(2)}`, `R$ ${(s.quantidade * s.valor).toFixed(2)}`
+    ]);
+
+    doc.autoTable({
+      startY: 95,
+      head: [colunasServicos],
+      body: linhasServicos,
+      theme: "striped",
+      headStyles: { fillColor: [11, 25, 44], textColor: [255, 255, 255] },
+      columnStyles: { 0: { halign: "center", cellWidth: 12 }, 2: { halign: "center", cellWidth: 15 }, 3: { halign: "right", cellWidth: 25 }, 4: { halign: "right", cellWidth: 25 } }
+    });
+
+    let currentY = doc.lastAutoTable.finalY + 8;
+
+    // Tabela de Materiais
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("2. MATERIAIS UTILIZADOS", 15, currentY);
+
+    const colunasMateriais = ["Item", "Descrição do Material", "Qtd", "Valor Unit.", "Total"];
+    const linhasMateriais = materiais.map((m, i) => [
+      i + 1, m.descricao, m.quantidade, `R$ ${m.valor.toFixed(2)}`, `R$ ${(m.quantidade * m.valor).toFixed(2)}`
+    ]);
+
+    doc.autoTable({
+      startY: currentY + 3,
+      head: [colunasMateriais],
+      body: linhasMateriais,
+      theme: "striped",
+      headStyles: { fillColor: [53, 162, 235], textColor: [255, 255, 255] },
+      columnStyles: { 0: { halign: "center", cellWidth: 12 }, 2: { halign: "center", cellWidth: 15 }, 3: { halign: "right", cellWidth: 25 }, 4: { halign: "right", cellWidth: 25 } }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 10;
+
+    // Seção de Fechamento de Valores e Obs
+    if (currentY > 230) { doc.addPage(); currentY = 20; }
+
+    // Caixa de Observações
+    doc.setFillColor(253, 253, 253);
+    doc.rect(15, currentY, 110, 30, "F");
+    doc.rect(15, currentY, 110, 30, "S");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("OBSERVAÇÕES:", 18, currentY + 5);
+    doc.setFont("helvetica", "normal");
+    const splitObs = doc.splitTextToSize(observacoes, 104);
+    doc.text(splitObs, 18, currentY + 11);
+
+    // Bloco Resumo de Totais
+    doc.setFillColor(244, 246, 249);
+    doc.rect(135, currentY, 60, 30, "F");
+    doc.rect(135, currentY, 60, 30, "S");
+    
+    doc.setFontSize(9);
+    doc.text(`Total Serviços: R$ ${totalServicos.toFixed(2)}`, 139, currentY + 7);
+    doc.text(`Total Materiais: R$ ${totalMateriais.toFixed(2)}`, 139, currentY + 14);
+    
+    doc.setDrawColor(11, 25, 44);
+    doc.line(135, currentY + 19, 195, currentY + 19);
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(`TOTAL GERAL: R$ ${totalGeral.toFixed(2)}`, 139, currentY + 25);
+
+    // Rodapé de Assinatura
+    doc.setDrawColor(180, 180, 180);
+    doc.line(60, 275, 150, 275);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text("YUNG CFTV - Responsável Técnico", 105, 279, { align: "center" });
+
+    doc.save(`Orcamento_${numeroOrcamento.replace("/", "_")}_YungCFTV.pdf`);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-4 md:p-8">
+      <div className="max-w-5xl mx-auto bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden">
+        
+        {/* BANNER DO TOPO COM O LOGO CORRIGIDO */}
+        <div className="bg-gradient-to-r from-slate-950 to-slate-900 p-6 border-b border-slate-700 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-600/10 p-3 rounded-xl border border-blue-500/30 text-blue-400">
+              <Shield size={36} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-wider text-white flex items-center gap-2">
+                YUNG <span className="text-blue-500 font-light">CFTV</span>
+              </h1>
+              <p className="text-xs text-slate-400 font-mono">Sistemas de Segurança Profissional</p>
+            </div>
+          </div>
+          <div className="text-right font-mono text-xs text-slate-400 bg-slate-950/50 p-3 rounded-lg border border-slate-800">
+            <div>CNPJ: 63.807.635/0001-15</div>
+            <div>Castro - PR</div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-8">
+          {/* SEÇÃO 1: METADADOS DO ORÇAMENTO */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/40 p-4 rounded-xl border border-slate-700/50">
+            <div>
+              <label className="block text-xs text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><Hash size={12}/> Nº Orçamento</label>
+              <input type="text" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" value={numeroOrcamento} onChange={(e) => setNumeroOrcamento(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><Calendar size={12}/> Data de Emissão</label>
+              <input type="date" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><Award size={12}/> Validade da Proposta</label>
+              <input type="text" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" value={validade} onChange={(e) => setValidade(e.target.value)} />
+            </div>
+          </div>
+
+          {/* SEÇÃO 2: DADOS DO CLIENTE */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold text-blue-400 tracking-wider uppercase flex items-center gap-2"><User size={16}/> Dados do Cliente</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <input type="text" placeholder="Nome do Cliente" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" value={cliente.nome} onChange={(e) => setCliente({...cliente, nome: e.target.value})} />
+              </div>
+              <div>
+                <input type="text" placeholder="Cidade" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" value={cliente.cidade} onChange={(e) => setCliente({...cliente, cidade: e.target.value})} />
+              </div>
+              <div>
+                <input type="text" placeholder="Contato" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" value={cliente.contato} onChange={(e) => setCliente({...cliente, contato: e.target.value})} />
+              </div>
+              <div>
+                <input type="text" placeholder="Telefone" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" value={cliente.telefone} onChange={(e) => setCliente({...cliente, telefone: e.target.value})} />
+              </div>
+            </div>
+          </div>
+
+          {/* SEÇÃO 3: SERVIÇOS */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-bold text-blue-400 tracking-wider uppercase flex items-center gap-2"><FileText size={16}/> 1. Serviços & Mão de Obra</h3>
+              <button onClick={adicionarServico} className="bg-blue-600 hover:bg-blue-700 text-xs text-white px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"><Plus size={14}/> Adicionar Linha</button>
+            </div>
+            <div className="space-y-2">
+              {servicos.map((item) => (
+                <div key={item.id} className="flex flex-col md:flex-row gap-2 items-center bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+                  <input type="text" placeholder="Descrição do Serviço" className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-sm" value={item.descricao} onChange={(e) => atualizarServico(item.id, "descricao", e.target.value)} />
+                  <input type="number" placeholder="Qtd" className="w-20 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-sm text-center" value={item.quantidade} onChange={(e) => atualizarServico(item.id, "quantidade", parseInt(e.target.value) || 0)} />
+                  <input type="number" placeholder="Valor (R$)" className="w-32 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-sm text-right" value={item.valor} onChange={(e) => atualizarServico(item.id, "valor", parseFloat(e.target.value) || 0)} />
+                  <button onClick={() => removerServico(item.id)} className="text-rose-400 hover:text-rose-500 p-2"><Trash2 size={16}/></button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* SEÇÃO 4: MATERIAIS */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-bold text-sky-400 tracking-wider uppercase flex items-center gap-2"><Shield size={16}/> 2. Materiais Utilizados</h3>
+              <button onClick={adicionarMaterial} className="bg-sky-600 hover:bg-sky-700 text-xs text-white px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"><Plus size={14}/> Adicionar Material</button>
+            </div>
+            <div className="space-y-2">
+              {materiais.map((item) => (
+                <div key={item.id} className="flex flex-col md:flex-row gap-2 items-center bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+                  <input type="text" placeholder="Descrição do Material" className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-sm" value={item.descricao} onChange={(e) => atualizarMaterial(item.id, "descricao", e.target.value)} />
+                  <input type="number" placeholder="Qtd" className="w-20 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-sm text-center" value={item.quantidade} onChange={(e) => atualizarMaterial(item.id, "quantidade", parseInt(e.target.value) || 0)} />
+                  <input type="number" placeholder="Valor (R$)" className="w-32 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-sm text-right" value={item.valor} onChange={(e) => atualizarMaterial(item.id, "valor", parseFloat(e.target.value) || 0)} />
+                  <button onClick={() => removerMaterial(item.id)} className="text-rose-400 hover:text-rose-500 p-2"><Trash2 size={16}/></button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* SEÇÃO 5: OBSERVAÇÕES E TOTAIS INTERNOS */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-700">
+            <div className="md:col-span-2">
+              <label className="block text-xs text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><Info size={12}/> Observações da Proposta</label>
+              <textarea rows={3} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-sm focus:outline-none focus:border-blue-500" value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+            </div>
+            <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 font-mono text-sm space-y-2 text-right">
+              <div className="text-slate-400">Serviços: R$ {totalServicos.toFixed(2)}</div>
+              <div className="text-slate-400">Materiais: R$ {totalMateriais.toFixed(2)}</div>
+              <div className="text-xl font-bold text-emerald-400 border-t border-slate-800 pt-2 mt-2">
+                TOTAL: R$ {totalGeral.toFixed(2)}
+              </div>
+            </div>
+          </div>
+
+          {/* BOTÃO DA AÇÃO PRINCIPAL */}
+          <div className="flex justify-end pt-4">
+            <button onClick={gerarPDF} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-8 py-3 rounded-xl shadow-lg transition-all flex items-center gap-2 text-base w-full md:w-auto justify-center">
+              <FileText size={20}/> GERAR ORÇAMENTO TIMBRADO (PDF)
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
