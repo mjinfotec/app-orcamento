@@ -243,7 +243,7 @@ export default function App() {
         <div style={estilos.topo}>
           <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
             <img
-              src="/image_a11a54.png"
+              src={`${import.meta.env.BASE_URL}image_a11a54.png`}
               alt="YUNG CFTV Logo"
               style={{ height: "60px", width: "auto", borderRadius: "8px" }}
             />
